@@ -68,17 +68,17 @@ for TOPIC in $TOPICS; do
     REPLICATION_FACTOR=0
 
     # Extract PartitionCount and ReplicationFactor from the topic description
-    PARTITION_COUNT=$(echo "$PARTITIONS" | grep -oP "PartitionCount:\s*\K\d+")
-    REPLICATION_FACTOR=$(echo "$PARTITIONS" | grep -oP "ReplicationFactor:\s*\K\d+")
+    PARTITION_COUNT=$(echo "$PARTITIONS" | sed -n 's/.*PartitionCount:[[:space:]]*\([0-9]*\).*/\1/p')
+    REPLICATION_FACTOR=$(echo "$PARTITIONS" | sed -n 's/.*ReplicationFactor:[[:space:]]*\([0-9]*\).*/\1/p')
 
     # Loop through each partition's details
-    echo "$PARTITIONS" | grep -P "Partition: \d+" | while read -r line; do
-        # Parse the partition information
-        PARTITION=$(echo "$line" | awk '{print $2}')
-        LEADER=$(echo "$line" | awk '{print $4}')
-        REPLICAS=$(echo "$line" | awk '{print $6}' | sed 's/,/;/g')  # Replace commas with semicolons for CSV
-        ISRS=$(echo "$line" | awk '{print $8}' | sed 's/,/;/g')         # Same for ISRs
-        
+    echo "$PARTITIONS" | grep -P "Partition:\s*\d+" | while read -r line; do
+        # Extract Partition, Leader, Replicas, and ISRs using specific regex
+        PARTITION=$(echo "$line" | sed -E 's/.*Partition:\s*([0-9]+)\s*Leader.*/\1/')
+        LEADER=$(echo "$line" | sed -E 's/.*Leader:\s*([0-9]+)\s*Replicas.*/\1/')
+        REPLICAS=$(echo "$line" | sed -E 's/.*Replicas:\s*([0-9,]+)\s*Isr:.*/\1/' | sed 's/,/;/g')
+        ISRS=$(echo "$line" | sed -E 's/.*Isr:\s*([0-9,]+)\s*/\1/' | sed 's/,/;/g')
+
         # Append partition info to the partition CSV file
         echo "$TOPIC,$PARTITION,$LEADER,$REPLICAS,$ISRS" >> "$PARTITION_OUTPUT_FILE"
     done
