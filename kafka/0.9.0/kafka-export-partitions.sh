@@ -71,18 +71,16 @@ for TOPIC in $TOPICS; do
     PARTITION_COUNT=$(echo "$PARTITIONS" | grep -oP "PartitionCount:\s*\K\d+")
     REPLICATION_FACTOR=$(echo "$PARTITIONS" | grep -oP "ReplicationFactor:\s*\K\d+")
 
-    # Loop through each line of the description to process partition information
-    echo "$PARTITIONS" | while read line; do
-        # Skip the lines that don't contain partition info
-        if [[ "$line" == Partition* ]]; then
-            PARTITION=$(echo "$line" | awk '{print $2}')
-            LEADER=$(echo "$line" | awk '{print $3}')
-            REPLICAS=$(echo "$line" | awk '{print $4}' | sed 's/,/;/g')  # Replace commas with semicolons for CSV format
-            ISRS=$(echo "$line" | awk '{print $5}' | sed 's/,/;/g')         # Same for ISRs
-            
-            # Append partition info to the partition CSV file
-            echo "$TOPIC,$PARTITION,$LEADER,$REPLICAS,$ISRS" >> $PARTITION_OUTPUT_FILE
-        fi
+    # Loop through each partition's details
+    echo "$PARTITIONS" | grep -P "Partition: \d+" | while read -r line; do
+        # Parse the partition information
+        PARTITION=$(echo "$line" | awk '{print $2}')
+        LEADER=$(echo "$line" | awk '{print $4}')
+        REPLICAS=$(echo "$line" | awk '{print $6}' | sed 's/,/;/g')  # Replace commas with semicolons for CSV
+        ISRS=$(echo "$line" | awk '{print $8}' | sed 's/,/;/g')         # Same for ISRs
+        
+        # Append partition info to the partition CSV file
+        echo "$TOPIC,$PARTITION,$LEADER,$REPLICAS,$ISRS" >> "$PARTITION_OUTPUT_FILE"
     done
 
     # Append the summary (Topic, Partition Count, Replication Factor) to the summary CSV file
